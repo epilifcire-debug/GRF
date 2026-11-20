@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "build:preview": "tsc -b && vite build --mode preview",
     "preview": "vite preview --host 0.0.0.0 --port 8080",
-    "start": "node server.js"
+    "start": "node server.js",
+    "build:server": "vite build",
+    "release": "tsc -b && vite build && node server.js --stamp"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.4",

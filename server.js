@@ -48,19 +48,43 @@ function fingerprint() {
 
 const temFonte = existsSync(join(ROOT, "src"));
 const BUILD_ID = join(DIST, ".build-id");
+
+// "npm run release": marca o dist/ gerado como correspondente ao código atual
+if (process.argv.includes("--stamp")) {
+  writeFileSync(BUILD_ID, fingerprint());
+  console.log("[grf] dist/ marcado como atualizado.");
+  process.exit(0);
+}
+
+// O projeto já vem com o dist/ pronto (npm run release). Só gera o build no
+// servidor se o código mudou sem um release — usando só o Vite (sem checagem
+// de tipos) e com limite de memória, para caber em planos pequenos.
 if (temFonte) {
   const atual = fingerprint();
   const anterior = existsSync(BUILD_ID) ? readFileSync(BUILD_ID, "utf8").trim() : "";
   if (!existsSync(join(DIST, "index.html")) || atual !== anterior) {
-    console.log("[grf] código novo detectado — gerando build...");
-    if (!existsSync(join(ROOT, "node_modules", "vite"))) {
-      execSync("npm install --include=dev --no-audit --no-fund", { cwd: ROOT, stdio: "inherit" });
+    console.log("[grf] dist/ desatualizado — gerando build (recomendado: rodar 'npm run release' antes do deploy)...");
+    try {
+      if (!existsSync(join(ROOT, "node_modules", "vite"))) {
+        execSync("npm install --include=dev --no-audit --no-fund", { cwd: ROOT, stdio: "inherit" });
+      }
+      execSync("npm run build:server", {
+        cwd: ROOT,
+        stdio: "inherit",
+        env: { ...process.env, NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --max-old-space-size=${process.env.GRF_BUILD_MEMORY ?? 400}`.trim() },
+      });
+      writeFileSync(BUILD_ID, atual);
+      console.log("[grf] build pronto.");
+    } catch (e) {
+      if (existsSync(join(DIST, "index.html"))) {
+        console.error("[grf] não foi possível gerar o build (memória?). Servindo o dist/ que já existe.", e.message);
+      } else {
+        console.error("[grf] não foi possível gerar o build e não há dist/. Aumente a memória ou rode 'npm run release' e envie o dist/.");
+        process.exit(1);
+      }
     }
-    execSync("npm run build", { cwd: ROOT, stdio: "inherit" });
-    writeFileSync(BUILD_ID, atual);
-    console.log("[grf] build pronto.");
   } else {
-    console.log("[grf] build já está atualizado.");
+    console.log("[grf] dist/ já está atualizado.");
   }
 } else if (!existsSync(join(DIST, "index.html"))) {
   console.error("[grf] dist/ não encontrado e não há código-fonte para gerar o build.");

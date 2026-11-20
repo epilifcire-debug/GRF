@@ -61,7 +61,7 @@ export default function Login() {
           {erro && <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{erro}</p>}
           {!IS_PREVIEW && !supabaseConfigurado && (
             <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              Supabase não configurado: defina VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY no .env.
+              Supabase não configurado. Confira as variáveis do servidor: VITE_SUPABASE_URL deve ser a URL do projeto (https://xxxx.supabase.co) e VITE_SUPABASE_PUBLISHABLE_KEY a chave pública.
             </p>
           )}
           <Button type="submit" size="lg" disabled={busy} className="mt-1">

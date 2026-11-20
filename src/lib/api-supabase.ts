@@ -7,9 +7,14 @@ const runtime = (window as { __GRF_CONFIG__?: { supabaseUrl?: string; supabaseKe
 const url = runtime?.supabaseUrl || (import.meta.env.VITE_SUPABASE_URL as string | undefined);
 const key = runtime?.supabaseKey || (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined);
 
-export const supabaseConfigurado = Boolean(url && key);
+const urlValida = /^https?:\/\/[^\s]+$/i.test(url ?? "");
+export const supabaseConfigurado = Boolean(urlValida && key);
+if (!supabaseConfigurado) {
+  console.error("[grf] Supabase mal configurado: VITE_SUPABASE_URL deve ser a URL do projeto (https://xxxx.supabase.co) e VITE_SUPABASE_PUBLISHABLE_KEY a chave pública.");
+}
 
-export const supabase = createClient(url || "http://localhost", key || "public-anon-key", {
+// Com configuração inválida o app não quebra: mostra o aviso na tela de login
+export const supabase = createClient(urlValida ? url! : "http://localhost", key || "public-anon-key", {
   auth: { persistSession: true, autoRefreshToken: true, storageKey: "grf-auth" },
 });
 

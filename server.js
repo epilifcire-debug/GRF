@@ -39,6 +39,9 @@ const config = {
   supabaseUrl: process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "",
   supabaseKey: process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || "",
 };
+if (config.supabaseUrl && !/^https?:\/\//i.test(config.supabaseUrl)) {
+  console.warn("[grf] ATENÇÃO: VITE_SUPABASE_URL não é uma URL (https://xxxx.supabase.co). Verifique se as variáveis não foram trocadas.");
+}
 if (!config.supabaseUrl || !config.supabaseKey) {
   console.warn("[grf] ATENÇÃO: defina VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY (variáveis de ambiente ou .env).");
 }

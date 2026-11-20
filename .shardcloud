@@ -1,0 +1,6 @@
+DISPLAY_NAME=GRF Controle Pessoal
+DESCRIPTION=Controle de efetivo e relatorios da GRF Seguranca
+MAIN=server.js
+MEMORY=512
+VERSION=recommended
+SUBDOMAIN=grfpessoal

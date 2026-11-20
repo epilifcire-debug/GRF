@@ -2,8 +2,10 @@ import { createClient, type PostgrestError } from "@supabase/supabase-js";
 import { AppError, type Api } from "./api";
 import type { EfetivoItem, EventoResumo, Membro } from "./types";
 
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+/** Chaves públicas: primeiro as do servidor (/config.js), depois as do build (.env) */
+const runtime = (window as { __GRF_CONFIG__?: { supabaseUrl?: string; supabaseKey?: string } }).__GRF_CONFIG__;
+const url = runtime?.supabaseUrl || (import.meta.env.VITE_SUPABASE_URL as string | undefined);
+const key = runtime?.supabaseKey || (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined);
 
 export const supabaseConfigurado = Boolean(url && key);
 

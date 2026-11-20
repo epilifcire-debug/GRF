@@ -4,7 +4,16 @@ import { defineConfig } from "vite";
 import { viteSingleFile } from "vite-plugin-singlefile";
 
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), ...(mode === "preview" ? [viteSingleFile()] : [])],
+  plugins: [
+    react(),
+    ...(mode === "preview"
+      ? [
+          viteSingleFile(),
+          // o preview não tem servidor: remove o /config.js
+          { name: "grf-preview-no-config", transformIndexHtml: (html: string) => html.replace(/\s*<!--[^>]*-->\s*<script src="\/config\.js"><\/script>/, "") },
+        ]
+      : []),
+  ],
   resolve: {
     alias: [
       // No preview, a camada de dados vira a versão em memória com dados fictícios

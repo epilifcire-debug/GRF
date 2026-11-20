@@ -1,11 +1,12 @@
 // Servidor de produção do GRF Controle Pessoal (Shard Cloud / qualquer Node).
-// - Se ainda não existir build (dist/), roda "npm run build" uma vez.
+// - Gera o build (npm run build) na 1ª vez e sempre que o código mudar.
 // - Serve os arquivos estáticos com fallback de SPA (rotas do React).
 // - Entrega /config.js com as chaves PÚBLICAS do Supabase lidas das
 //   variáveis de ambiente (ou do arquivo .env), sem precisar recompilar.
 // Sem dependências externas.
 import { execSync } from "node:child_process";
-import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { createReadStream, existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,13 +26,45 @@ for (const file of [".env.production", ".env"]) {
   }
 }
 
-/* ---------- build na primeira inicialização ---------- */
-if (!existsSync(join(DIST, "index.html"))) {
-  console.log("[grf] dist/ não encontrado — gerando build...");
-  if (!existsSync(join(ROOT, "node_modules", "vite"))) {
-    execSync("npm install --include=dev --no-audit --no-fund", { cwd: ROOT, stdio: "inherit" });
+/* ---------- build: gera de novo sempre que o código mudar ---------- */
+// Na Shard a pasta dist/ pode sobreviver entre deploys; por isso o build é
+// refeito quando a "impressão digital" do código-fonte muda.
+function fingerprint() {
+  const hash = createHash("sha1");
+  const walk = (rel) => {
+    const abs = join(ROOT, rel);
+    if (!existsSync(abs)) return;
+    const st = statSync(abs);
+    if (st.isDirectory()) {
+      for (const name of readdirSync(abs).sort()) walk(join(rel, name));
+    } else {
+      hash.update(rel);
+      hash.update(readFileSync(abs));
+    }
+  };
+  ["src", "public", "index.html", "package.json", "vite.config.ts", "tailwind.config.js", "postcss.config.js"].forEach(walk);
+  return hash.digest("hex");
+}
+
+const temFonte = existsSync(join(ROOT, "src"));
+const BUILD_ID = join(DIST, ".build-id");
+if (temFonte) {
+  const atual = fingerprint();
+  const anterior = existsSync(BUILD_ID) ? readFileSync(BUILD_ID, "utf8").trim() : "";
+  if (!existsSync(join(DIST, "index.html")) || atual !== anterior) {
+    console.log("[grf] código novo detectado — gerando build...");
+    if (!existsSync(join(ROOT, "node_modules", "vite"))) {
+      execSync("npm install --include=dev --no-audit --no-fund", { cwd: ROOT, stdio: "inherit" });
+    }
+    execSync("npm run build", { cwd: ROOT, stdio: "inherit" });
+    writeFileSync(BUILD_ID, atual);
+    console.log("[grf] build pronto.");
+  } else {
+    console.log("[grf] build já está atualizado.");
   }
-  execSync("npm run build", { cwd: ROOT, stdio: "inherit" });
+} else if (!existsSync(join(DIST, "index.html"))) {
+  console.error("[grf] dist/ não encontrado e não há código-fonte para gerar o build.");
+  process.exit(1);
 }
 
 /* ---------- config pública do Supabase ---------- */

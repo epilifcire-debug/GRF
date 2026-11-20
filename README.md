@@ -8,6 +8,7 @@ Sistema de controle de efetivo da **GRF Segurança Patrimonial Privada Ltda**: c
 - **Equipe**: cards de resumo por tipo (clique para filtrar), busca, tabela zebrada, edição inline (Enter salva, Esc cancela), exclusão com confirmação.
 - **CSV**: importação (separador `;`, `,` ou TAB, com ou sem cabeçalho), exportação e planilha modelo.
 - **Relatório**: cabeçalho editável (evento, município, data com calendário, organizador, contato, observações), cabeçalho oficial da GRF, tabela Nº | Nome | GE/VG/AP | Chave PIX | Valor | Assinatura, linhas em branco opcionais, filtro por classificação, totais e impressão limpa em A4.
+- **PWA**: dá pra instalar no celular e no computador (botão "Instalar app" no menu quando o navegador permitir). Funciona em tela cheia e abre mesmo sem internet, porque o service worker guarda só os arquivos do app, nunca os dados. Quando sai versão nova, aparece um aviso "Atualizar".
 - **Dados**: ficam salvos no `localStorage` do navegador (não há backend).
 
 | Classificação | Código | Valor padrão |

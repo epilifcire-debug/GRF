@@ -18,7 +18,8 @@ export interface Api {
   auth: {
     getUser(): Promise<AuthUser | null>;
     onChange(cb: (user: AuthUser | null) => void): () => void;
-    signIn(email: string, senha: string): Promise<void>;
+    /** aceita nome de usuário ou e-mail */
+    signIn(usuario: string, senha: string): Promise<void>;
     signOut(): Promise<void>;
     trocarSenha(nova: string): Promise<void>;
     membro(userId: string): Promise<Membro | null>;
@@ -46,9 +47,10 @@ export interface Api {
   };
   membros: {
     list(): Promise<Membro[]>;
-    criar(input: { nome: string; email: string; senha: string; papel: Membro["papel"] }): Promise<void>;
+    criar(input: { nome: string; login: string; senha: string; papel: Membro["papel"]; email?: string }): Promise<void>;
     update(userId: string, patch: Partial<Pick<Membro, "nome" | "papel" | "ativo">>): Promise<void>;
     definirSenha(userId: string, senha: string): Promise<void>;
+    definirLogin(userId: string, login: string): Promise<void>;
   };
 }
 

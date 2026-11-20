@@ -4,9 +4,10 @@ Rode tudo no **mesmo projeto** Supabase cujas URL e chave estão nas variáveis 
 
 ## 1. Criar as tabelas
 
-1. Abra o projeto **Monitoramento** no Supabase → **SQL Editor** → **New query**.
-2. Cole todo o conteúdo de `supabase/migrations/20261120000000_grf_schema.sql`.
-3. Clique em **Run**. Deve aparecer *Success. No rows returned*.
+No **SQL Editor** do projeto, rode **na ordem** (cada arquivo inteiro → **Run**):
+
+1. `supabase/migrations/20261120000000_grf_schema.sql`: tabelas, view e RLS.
+2. `supabase/migrations/20261120210000_grf_login_usuario.sql`: login por **usuário ou e-mail**. Rode este **depois** de criar o primeiro admin (passo 3), ou rode de novo o comando de admin depois dele; o arquivo já preenche o usuário de quem existir.
 
 Isso cria:
 
@@ -27,7 +28,7 @@ Isso cria:
 
 ## 2. Publicar a Edge Function (criar usuários pelo app)
 
-A tela **Usuários** cria logins por esta função, que usa a service_role apenas no servidor.
+A tela **Usuários** cria contas, troca usuário e define senha por esta função, que usa a service_role apenas no servidor. **Sempre que este arquivo mudar, publique de novo.**
 
 **Pelo painel:** **Edge Functions** → **Deploy a new function** → **Via Editor** → nome `grf-usuarios` → cole o conteúdo de `supabase/functions/grf-usuarios/index.ts` → **Deploy**.
 
@@ -45,9 +46,21 @@ O primeiro admin é criado à mão, uma única vez. Depois disso, os outros usu�
 1. **Authentication** → **Users** → **Add user** → **Create new user**: informe seu e-mail e uma senha, e marque **Auto Confirm User**.
 2. No **SQL Editor**, rode o comando abaixo trocando o e-mail e o nome:
 
+Antes da migração de login (só o schema inicial rodado):
+
 ```sql
 insert into public.grf_membros (user_id, nome, email, papel, ativo)
 select id, 'Eric', email, 'admin', true
+from auth.users
+where lower(email) = lower('SEU-EMAIL@exemplo.com')
+on conflict (user_id) do update set papel = 'admin', ativo = true;
+```
+
+Depois da migração de login (coluna `login` já existe):
+
+```sql
+insert into public.grf_membros (user_id, nome, login, email, papel, ativo)
+select id, 'Eric', 'eric', email, 'admin', true
 from auth.users
 where lower(email) = lower('SEU-EMAIL@exemplo.com')
 on conflict (user_id) do update set papel = 'admin', ativo = true;
@@ -80,3 +93,10 @@ Essas chaves são públicas por natureza e vão no navegador. **Nunca** use a `s
 
 - **Advisors → Security** no painel não deve acusar tabelas `grf_` sem RLS.
 - Entre com um login que **não** está em `grf_membros`: o app mostra "Acesso não liberado".
+
+## Como funciona o login (usuário ou e-mail)
+
+- Cada membro tem um **usuário** (ex.: `joao.silva`) e, se quiser, um **e-mail de contato**. Os dois servem para entrar.
+- O Supabase exige e-mail em toda conta. Por isso, contas criadas pelo app usam um e-mail interno gerado do usuário (`grf-joao.silva@efcsys.com`). Ele não recebe mensagens e a conta já nasce confirmada.
+- Quem foi criado direto no painel do Supabase com e-mail real (como o primeiro admin) entra com esse e-mail. Para passar a entrar também pelo usuário, use **Usuários → Usuário** e salve o nome desejado. O e-mail de contato continua servindo para entrar.
+- Para trocar o domínio interno, altere `LOGIN_DOMAIN` em `src/lib/login.ts` **e** na Edge Function. As duas precisam ficar iguais.

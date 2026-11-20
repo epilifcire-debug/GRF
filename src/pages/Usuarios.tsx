@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { KeyRound, ShieldCheck, UserPlus } from "lucide-react";
-import { useState } from "react";
+import { AtSign, KeyRound, ShieldCheck, UserPlus } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/Layout";
@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageLoading, Spinner } from "@/components/ui/spinner";
 import { api, qk, toastErr, useMembros, useSession } from "@/lib/data";
+import { loginErro, normalizarLogin, sugerirLogin } from "@/lib/login";
 import type { Membro } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +22,7 @@ export default function Usuarios() {
   const qc = useQueryClient();
   const [novo, setNovo] = useState(false);
   const [senhaDe, setSenhaDe] = useState<Membro | null>(null);
+  const [loginDe, setLoginDe] = useState<Membro | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   if (!isAdmin) return <Navigate to="/" replace />;
@@ -65,7 +67,10 @@ export default function Usuarios() {
                     <p className="truncate text-sm font-semibold">
                       {m.nome} {eu && <span className="text-xs font-normal text-muted-foreground">(você)</span>}
                     </p>
-                    <p className="truncate text-xs text-muted-foreground">{m.email}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground/80">@{m.login}</span>
+                      {m.email && ` · ${m.email}`}
+                    </p>
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -78,6 +83,9 @@ export default function Usuarios() {
                       <SelectItem value="admin">Administrador</SelectItem>
                     </SelectContent>
                   </Select>
+                  <Button variant="outline" size="sm" onClick={() => setLoginDe(m)}>
+                    <AtSign /> Usuário
+                  </Button>
                   <Button variant="outline" size="sm" onClick={() => setSenhaDe(m)}>
                     <KeyRound /> Senha
                   </Button>
@@ -100,23 +108,29 @@ export default function Usuarios() {
 
       <NovoUsuario open={novo} onOpenChange={setNovo} onDone={() => qc.invalidateQueries({ queryKey: qk.membros })} />
       <DefinirSenha membro={senhaDe} onClose={() => setSenhaDe(null)} />
+      <DefinirLogin membro={loginDe} onClose={() => setLoginDe(null)} onDone={() => qc.invalidateQueries({ queryKey: qk.membros })} />
     </div>
   );
 }
 
 function NovoUsuario({ open, onOpenChange, onDone }: { open: boolean; onOpenChange: (o: boolean) => void; onDone: () => void }) {
-  const [f, setF] = useState({ nome: "", email: "", senha: "", papel: "equipe" as Membro["papel"] });
+  const vazio = { nome: "", login: "", email: "", senha: "", papel: "equipe" as Membro["papel"] };
+  const [f, setF] = useState(vazio);
+  const [loginEditado, setLoginEditado] = useState(false);
   const [busy, setBusy] = useState(false);
-  const valido = f.nome.trim().length >= 2 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim()) && f.senha.length >= 8;
+  const emailOk = !f.email.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim());
+  const erroLogin = f.login ? loginErro(f.login) : "";
+  const valido = f.nome.trim().length >= 2 && !!f.login && !erroLogin && emailOk && f.senha.length >= 8;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!valido || busy) return;
     setBusy(true);
     try {
-      await api.membros.criar({ ...f, nome: f.nome.trim(), email: f.email.trim() });
-      toast.success("Usuário criado", { description: `Envie o e-mail e a senha provisória para ${f.nome.trim()}.` });
-      setF({ nome: "", email: "", senha: "", papel: "equipe" });
+      await api.membros.criar({ ...f, nome: f.nome.trim(), email: f.email.trim() || undefined });
+      toast.success("Usuário criado", { description: `Envie o usuário "${f.login}" e a senha provisória para ${f.nome.trim()}.` });
+      setF(vazio);
+      setLoginEditado(false);
       onDone();
       onOpenChange(false);
     } catch (err) {
@@ -128,15 +142,41 @@ function NovoUsuario({ open, onOpenChange, onDone }: { open: boolean; onOpenChan
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title="Novo usuário" description="O login já sai liberado. A pessoa pode trocar a senha depois em “Senha”, no menu.">
+      <DialogContent title="Novo usuário" description="A conta já sai liberada, sem confirmação por e-mail. A pessoa entra com o usuário (ou o e-mail, se informado) e pode trocar a senha depois em “Senha”, no menu.">
         <form onSubmit={submit} className="grid gap-4">
           <div className="grid gap-2">
             <Label htmlFor="nu-nome">Nome</Label>
-            <Input id="nu-nome" value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} />
+            <Input
+              id="nu-nome"
+              value={f.nome}
+              onChange={(e) => setF({ ...f, nome: e.target.value, login: loginEditado ? f.login : sugerirLogin(e.target.value) })}
+            />
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="nu-email">E-mail (login)</Label>
-            <Input id="nu-email" type="email" inputMode="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor="nu-login">Usuário (para entrar)</Label>
+              <Input
+                id="nu-login"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                value={f.login}
+                onChange={(e) => {
+                  setLoginEditado(true);
+                  setF({ ...f, login: normalizarLogin(e.target.value) });
+                }}
+                placeholder="joao.silva"
+                aria-invalid={!!erroLogin}
+              />
+              {erroLogin && <p className="text-xs text-destructive">{erroLogin}</p>}
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="nu-email">
+                E-mail <span className="font-normal text-muted-foreground">(opcional)</span>
+              </Label>
+              <Input id="nu-email" type="email" inputMode="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="também serve para entrar" aria-invalid={!emailOk} />
+              {!emailOk && <p className="text-xs text-destructive">E-mail inválido.</p>}
+            </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
@@ -170,7 +210,7 @@ function DefinirSenha({ membro, onClose }: { membro: Membro | null; onClose: () 
   const [busy, setBusy] = useState(false);
   return (
     <Dialog open={!!membro} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent title="Definir nova senha" description={`Para ${membro?.nome} (${membro?.email}).`}>
+      <DialogContent title="Definir nova senha" description={`Para ${membro?.nome} (@${membro?.login}).`}>
         <form
           className="grid gap-4"
           onSubmit={async (e) => {
@@ -192,6 +232,51 @@ function DefinirSenha({ membro, onClose }: { membro: Membro | null; onClose: () 
           <Input autoFocus type="text" autoComplete="off" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Nova senha (mín. 8 caracteres)" />
           <Button type="submit" disabled={senha.length < 8 || busy}>
             {busy && <Spinner />} Salvar senha
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DefinirLogin({ membro, onClose, onDone }: { membro: Membro | null; onClose: () => void; onDone: () => void }) {
+  const [login, setLogin] = useState("");
+  const [busy, setBusy] = useState(false);
+  const erro = login ? loginErro(login) : "";
+  useEffect(() => setLogin(membro?.login ?? ""), [membro]);
+  return (
+    <Dialog open={!!membro} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent title="Alterar usuário" description={`Novo nome de usuário para ${membro?.nome}. A senha continua a mesma.`}>
+        <form
+          className="grid gap-4"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!membro || !login || erro || login === membro.login) return;
+            setBusy(true);
+            try {
+              await api.membros.definirLogin(membro.user_id, login);
+              toast.success("Usuário alterado", { description: `Agora entra com "${login}".` });
+              onDone();
+              onClose();
+            } catch (err) {
+              toastErr(err);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <Input
+            autoFocus
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            value={login}
+            onChange={(e) => setLogin(normalizarLogin(e.target.value))}
+            placeholder="joao.silva"
+          />
+          {erro && <p className="text-xs text-destructive">{erro}</p>}
+          <Button type="submit" disabled={!login || !!erro || busy || login === membro?.login}>
+            {busy && <Spinner />} Salvar usuário
           </Button>
         </form>
       </DialogContent>

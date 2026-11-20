@@ -71,7 +71,7 @@ function SidebarContent({ onNavigate, onSenha }: { onNavigate?: () => void; onSe
         <div className="rounded-xl bg-sidebar-muted p-3">
           <p className="truncate text-sm font-semibold text-sidebar-foreground">{membro?.nome ?? user?.email}</p>
           <p className="truncate text-xs text-sidebar-foreground/50">
-            {membro?.papel === "admin" ? "Administrador" : "Equipe"} · {user?.email}
+            {membro?.papel === "admin" ? "Administrador" : "Equipe"} · {membro?.login ?? user?.email}
           </p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button

@@ -53,11 +53,11 @@ let efetivo: Row[] = [
 ];
 
 const membros: Membro[] = [
-  { user_id: "u1", nome: "Administrador (demo)", email: "admin@grf.demo", papel: "admin", ativo: true, created_at: now() },
-  { user_id: "u2", nome: "Coordenador de Equipe", email: "coordenador@grf.demo", papel: "equipe", ativo: true, created_at: now() },
+  { user_id: "u1", nome: "Administrador (demo)", login: "admin", email: null, papel: "admin", ativo: true, created_at: now() },
+  { user_id: "u2", nome: "Coordenador de Equipe", login: "coordenador", email: "coordenador@email.com", papel: "equipe", ativo: true, created_at: now() },
 ];
 
-let user: AuthUser | null = { id: "u1", email: "admin@grf.demo" };
+let user: AuthUser | null = { id: "u1", email: "admin" };
 const authSubs = new Set<(u: AuthUser | null) => void>();
 
 const withPessoa = (r: Row): EfetivoItem => ({ ...r, pessoa: pessoas.find((p) => p.id === r.pessoa_id)! });
@@ -178,8 +178,8 @@ export const demoApi: Api = {
     },
     async criar(input) {
       await wait(400);
-      if (membros.some((m) => m.email === input.email.toLowerCase())) throw new AppError("Já existe um login com esse e-mail");
-      membros.push({ user_id: uid(), nome: input.nome, email: input.email.toLowerCase(), papel: input.papel, ativo: true, created_at: now() });
+      if (membros.some((m) => m.login === input.login)) throw new AppError("Esse usuário já existe");
+      membros.push({ user_id: uid(), nome: input.nome, login: input.login, email: input.email || null, papel: input.papel, ativo: true, created_at: now() });
     },
     async update(userId, patch) {
       await wait();
@@ -187,6 +187,11 @@ export const demoApi: Api = {
     },
     async definirSenha() {
       await wait(300);
+    },
+    async definirLogin(userId, login) {
+      await wait(300);
+      if (membros.some((m) => m.login === login && m.user_id !== userId)) throw new AppError("Esse usuário já existe");
+      membros.find((m) => m.user_id === userId)!.login = login;
     },
   },
 };

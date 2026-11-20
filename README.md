@@ -4,7 +4,7 @@ Sistema de controle de efetivo da **GRF Segurança Patrimonial Privada Ltda**: e
 
 ## Funcionalidades
 
-- **Login**: só entra quem o administrador liberou. Cada usuário pode trocar a própria senha.
+- **Login por usuário ou e-mail**: só entra quem o administrador liberou. O e-mail é opcional e não há confirmação por e-mail. Cada usuário pode trocar a própria senha.
 - **Eventos**: lista com data, município, número de pessoas e valor. Ao criar um evento, dá pra começar com o efetivo de outro evento.
 - **Efetivo do evento**:
   - busca rápida pra adicionar pessoas já cadastradas (Enter adiciona);
@@ -14,7 +14,7 @@ Sistema de controle de efetivo da **GRF Segurança Patrimonial Privada Ltda**: e
   - importação e exportação de CSV.
 - **Relatório**: modelo GRF com cabeçalho do evento, caixas GE/VG/AP, coluna de assinatura, totais, linhas em branco opcionais e impressão limpa em A4.
 - **Pessoas**: cadastro único com nome, chave PIX (detecta CPF, telefone, e-mail ou chave aleatória) e classificação padrão. Não aceita a mesma chave PIX duas vezes.
-- **Usuários** (só admin): criar login, definir senha, trocar perfil (Equipe/Administrador) e desativar.
+- **Usuários** (só admin): criar conta (o usuário é sugerido a partir do nome), trocar usuário, definir senha, trocar perfil (Equipe/Administrador) e desativar.
 - **PWA**: instalável no celular e no computador, com aviso de nova versão.
 
 | Classificação | Código no relatório | Valor padrão |

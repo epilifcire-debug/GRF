@@ -1,5 +1,6 @@
 import { createClient, type PostgrestError } from "@supabase/supabase-js";
 import { AppError, type Api } from "./api";
+import { emailDeLogin } from "./login";
 import type { EfetivoItem, EventoResumo, Membro } from "./types";
 
 /** Chaves públicas: primeiro as do servidor (/config.js), depois as do build (.env) */
@@ -51,10 +52,24 @@ export const supabaseApi: Api = {
       });
       return () => data.subscription.unsubscribe();
     },
-    async signIn(email, senha) {
-      const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password: senha });
+    async signIn(usuario, senha) {
+      const entrada = usuario.trim().toLowerCase();
+      const tentativas: string[] = [];
+      if (entrada.includes("@")) {
+        // e-mail de contato -> usuário (conta com e-mail interno); senão, e-mail real da conta
+        const { data: login } = await supabase.rpc("grf_login_por_email", { p_email: entrada });
+        if (typeof login === "string" && login) tentativas.push(emailDeLogin(login));
+        tentativas.push(entrada);
+      } else {
+        tentativas.push(emailDeLogin(entrada));
+      }
+      let error: { message: string } | null = null;
+      for (const email of tentativas) {
+        ({ error } = await supabase.auth.signInWithPassword({ email, password: senha }));
+        if (!error) return;
+      }
       if (error) {
-        if (/invalid/i.test(error.message)) throw new AppError("E-mail ou senha incorretos.");
+        if (/invalid/i.test(error.message)) throw new AppError("Usuário ou senha incorretos.");
         throw new AppError("Não foi possível entrar agora. Tente de novo em instantes.");
       }
     },
@@ -179,6 +194,11 @@ export const supabaseApi: Api = {
     async update(userId, patch) {
       const { error } = await supabase.from("grf_membros").update(patch).eq("user_id", userId);
       fail(error, "membro");
+    },
+    async definirLogin(userId, login) {
+      const { data, error } = await supabase.functions.invoke("grf-usuarios", { body: { acao: "login", user_id: userId, login } });
+      if (error) throw new AppError((await readFnError(error)) ?? "Não foi possível alterar o usuário.");
+      if (data?.error) throw new AppError(data.error);
     },
     async definirSenha(userId, senha) {
       const { data, error } = await supabase.functions.invoke("grf-usuarios", { body: { acao: "senha", user_id: userId, senha } });

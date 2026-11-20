@@ -40,7 +40,10 @@ export interface EfetivoItem {
 export interface Membro {
   user_id: string;
   nome: string;
-  email: string;
+  /** nome de usuário usado para entrar (ex.: joao.silva) */
+  login: string;
+  /** e-mail de contato (opcional) */
+  email: string | null;
   papel: "admin" | "equipe";
   ativo: boolean;
   created_at: string;

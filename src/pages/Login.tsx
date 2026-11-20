@@ -12,7 +12,7 @@ import { IS_PREVIEW } from "@/lib/utils";
 
 export default function Login() {
   const { user, loading } = useSession();
-  const [email, setEmail] = useState("");
+  const [usuario, setUsuario] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
   const [busy, setBusy] = useState(false);
@@ -21,14 +21,14 @@ export default function Login() {
 
   const entrar = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !senha || busy) {
-      setErro("Informe e-mail e senha.");
+    if (!usuario.trim() || !senha || busy) {
+      setErro("Informe usuário e senha.");
       return;
     }
     setBusy(true);
     setErro("");
     try {
-      await api.auth.signIn(email, senha);
+      await api.auth.signIn(usuario, senha);
     } catch (err) {
       setErro(errMsg(err));
     } finally {
@@ -51,8 +51,18 @@ export default function Login() {
 
         <form onSubmit={entrar} className="grid gap-4 rounded-2xl border border-white/10 bg-card p-6 shadow-2xl" noValidate>
           <div className="grid gap-2">
-            <Label htmlFor="email">E-mail</Label>
-            <Input id="email" type="email" autoComplete="username" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" />
+            <Label htmlFor="usuario">Usuário</Label>
+            <Input
+              id="usuario"
+              autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              value={usuario}
+              onChange={(e) => setUsuario(e.target.value)}
+              placeholder="seu.usuario"
+            />
+            <p className="text-[11px] text-muted-foreground">Também aceita o e-mail, se você entra com ele.</p>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="senha">Senha</Label>
@@ -80,13 +90,14 @@ export default function Login() {
 
 export function SemAcesso() {
   const { user, erro } = useSession();
+  const quem = user?.email?.startsWith("grf-") ? user.email.slice(4).split("@")[0] : user?.email;
   return (
     <div className="flex min-h-screen items-center justify-center bg-sidebar px-4">
       <div className="w-full max-w-sm rounded-2xl bg-card p-6 text-center shadow-2xl">
         <img src={logo} alt="" className="mx-auto h-16 w-16 object-contain" />
         <h1 className="mt-4 text-lg font-semibold">Acesso não liberado</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          O login <strong>{user?.email}</strong> não está ativo no GRF Controle Pessoal. Peça ao administrador para liberar seu acesso.
+          O login <strong>{quem}</strong> não está ativo no GRF Controle Pessoal. Peça ao administrador para liberar seu acesso.
         </p>
         {erro && (
           <p className="mt-3 break-words rounded-md bg-destructive/10 px-3 py-2 text-left font-mono text-[11px] text-destructive">

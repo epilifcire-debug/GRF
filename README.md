@@ -42,33 +42,30 @@ npm run dev               # http://localhost:5173  (desenvolvimento)
 npm run build && npm start  # servidor de produção (server.js)
 ```
 
-## 3. Deploy na Shard Cloud
+## 3. Deploy na Shard Cloud (Docker — recomendado)
 
-O projeto já vem com `server.js` (servidor Node sem dependências) e `.shardcloud`:
+Crie a aplicação na Shard do tipo **Docker / Dockerfile**, apontando para este repositório ou enviando o zip. O `Dockerfile`:
+1. instala as dependências e gera o build;
+2. sobe uma imagem enxuta (`node:22-alpine`) que roda `node server.js` na porta **80**.
+
+No painel da aplicação, defina as **variáveis de ambiente**, que são as chaves públicas do Supabase:
 
 ```
-DISPLAY_NAME=GRF Controle Pessoal
-MAIN=server.js
-MEMORY=512
-VERSION=recommended
-SUBDOMAIN=grfpessoal
+VITE_SUPABASE_URL=https://SEU-PROJETO.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
 ```
 
-1. **Entrypoint / arquivo principal:** `server.js`. Se a Shard pedir um comando de início personalizado, use `node server.js` ou `npm start`.
-2. **Chaves do Supabase** (públicas): defina as variáveis de ambiente `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` no painel. Se não houver campo para variáveis, envie junto um arquivo `.env` com as duas linhas.
-3. Na primeira inicialização, o `server.js` gera o build sozinho (`npm run build`), o que leva por volta de 30 segundos. Depois ele serve o app na porta `PORT`, ou 80 se não houver.
-4. Ajuste o `SUBDOMAIN` se `grfpessoal` já estiver em uso.
+O `server.js` lê essas variáveis quando o container inicia e entrega o valor ao app em `/config.js`. Não precisa passar *build args*, e trocar a chave só exige reiniciar o container. Há um health check em `/health`.
 
-O servidor entrega as chaves em `/config.js` na hora da execução, então trocar a chave não exige um build novo: basta reiniciar o app.
+### Alternativa: aplicação Node (sem Docker)
 
-Ao enviar como .zip, não inclua `node_modules` nem `dist`.
+Se criar a aplicação como **Node.js**, use **entrypoint `server.js`** (ou o comando `node server.js`). O arquivo `.shardcloud` já vem com `MAIN=server.js`. Na primeira inicialização, o servidor gera o build sozinho.
 
-### Alternativa: Docker
+### Local com Docker
 
 ```bash
-docker build --build-arg VITE_SUPABASE_URL=https://SEU-PROJETO.supabase.co \
-  --build-arg VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx -t grf-controle-pessoal .
-docker run -p 8080:80 grf-controle-pessoal
+docker build -t grf-controle-pessoal .
+docker run -p 8080:80 -e VITE_SUPABASE_URL=... -e VITE_SUPABASE_PUBLISHABLE_KEY=... grf-controle-pessoal
 ```
 
 ## Preview (mockup navegável)

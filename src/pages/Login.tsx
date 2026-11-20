@@ -79,7 +79,7 @@ export default function Login() {
 }
 
 export function SemAcesso() {
-  const { user } = useSession();
+  const { user, erro } = useSession();
   return (
     <div className="flex min-h-screen items-center justify-center bg-sidebar px-4">
       <div className="w-full max-w-sm rounded-2xl bg-card p-6 text-center shadow-2xl">
@@ -88,6 +88,12 @@ export function SemAcesso() {
         <p className="mt-2 text-sm text-muted-foreground">
           O login <strong>{user?.email}</strong> não está ativo no GRF Controle Pessoal. Peça ao administrador para liberar seu acesso.
         </p>
+        {erro && (
+          <p className="mt-3 break-words rounded-md bg-destructive/10 px-3 py-2 text-left font-mono text-[11px] text-destructive">
+            Erro ao verificar acesso: {erro}
+          </p>
+        )}
+        <p className="mt-3 break-all text-[10px] text-muted-foreground/70">ID: {user?.id}</p>
         <Button variant="outline" className="mt-5 w-full" onClick={() => api.auth.signOut()}>
           Sair
         </Button>

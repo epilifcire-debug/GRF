@@ -17,6 +17,8 @@ interface Session {
   user: AuthUser | null;
   membro: Membro | null;
   isAdmin: boolean;
+  /** Falha ao consultar o cadastro de membro (diferente de "não cadastrado") */
+  erro?: string;
 }
 const SessionCtx = createContext<Session>({ loading: true, user: null, membro: null, isAdmin: false });
 
@@ -35,8 +37,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       try {
         const membro = await api.auth.membro(user.id);
         if (alive) setState({ loading: false, user, membro, isAdmin: !!membro?.ativo && membro.papel === "admin" });
-      } catch {
-        if (alive) setState({ loading: false, user, membro: null, isAdmin: false });
+      } catch (e) {
+        if (alive) setState({ loading: false, user, membro: null, isAdmin: false, erro: e instanceof Error ? e.message : String(e) });
       }
     };
     api.auth.getUser().then(load);

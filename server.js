@@ -47,6 +47,25 @@ if (!config.supabaseUrl || !config.supabaseKey) {
 }
 const configJs = `window.__GRF_CONFIG__=${JSON.stringify(config)};`;
 
+// O proxy da hospedagem força cache de 4h em arquivos .js, então a config
+// vai embutida no index.html (que não é cacheado).
+const INDEX = join(DIST, "index.html");
+const indexHtml = readFileSync(INDEX, "utf8").replace(
+  /<script src="\/config\.js"><\/script>/,
+  `<script>${configJs.replace(/</g, "\\u003c")}</script>`,
+);
+const indexGz = gzipSync(indexHtml);
+
+function sendIndex(req, res) {
+  const headers = { ...SECURITY_HEADERS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache, no-store, must-revalidate" };
+  if (/\bgzip\b/.test(req.headers["accept-encoding"] || "")) {
+    res.writeHead(200, { ...headers, "Content-Encoding": "gzip", Vary: "Accept-Encoding" });
+    return res.end(req.method === "HEAD" ? undefined : indexGz);
+  }
+  res.writeHead(200, headers);
+  res.end(req.method === "HEAD" ? undefined : indexHtml);
+}
+
 const TYPES = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -118,6 +137,8 @@ createServer((req, res) => {
     return res.end();
   }
 
+  if (pathname === "/" || pathname === "/index.html") return sendIndex(req, res);
+
   if (existsSync(filePath) && statSync(filePath).isFile()) {
     const cache = pathname.startsWith("/assets/")
       ? "public, max-age=31536000, immutable"
@@ -132,5 +153,5 @@ createServer((req, res) => {
     res.writeHead(404, SECURITY_HEADERS);
     return res.end("Not found");
   }
-  return send(req, res, join(DIST, "index.html"), "no-cache");
+  return sendIndex(req, res);
 }).listen(PORT, "0.0.0.0", () => console.log(`[grf] GRF Controle Pessoal rodando na porta ${PORT}`));

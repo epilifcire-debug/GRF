@@ -67,7 +67,10 @@ export const supabaseApi: Api = {
     },
     async membro(userId) {
       const { data, error } = await supabase.from("grf_membros").select("*").eq("user_id", userId).maybeSingle();
-      fail(error, "membro");
+      if (error) {
+        console.error("[grf] erro ao consultar grf_membros", error);
+        throw new AppError(`${error.code ?? ""} ${error.message}`.trim());
+      }
       return (data as Membro) ?? null;
     },
   },

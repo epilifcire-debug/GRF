@@ -1,6 +1,6 @@
 # Configurar o Supabase — GRF Controle Pessoal
 
-O GRF usa o projeto **Monitoramento**. Todas as tabelas começam com `grf_` e não mexem em nada que já exista lá.
+Rode tudo no **mesmo projeto** Supabase cujas URL e chave estão nas variáveis do app (hoje: `falwwfviodfxjriyulay`). Todas as tabelas começam com `grf_` e não mexem em nada que já exista no projeto.
 
 ## 1. Criar as tabelas
 
@@ -46,13 +46,23 @@ O primeiro admin é criado à mão, uma única vez. Depois disso, os outros usu�
 2. No **SQL Editor**, rode o comando abaixo trocando o e-mail e o nome:
 
 ```sql
-insert into public.grf_membros (user_id, nome, email, papel)
-select id, 'Eric', email, 'admin'
+insert into public.grf_membros (user_id, nome, email, papel, ativo)
+select id, 'Eric', email, 'admin', true
 from auth.users
-where email = 'SEU-EMAIL@exemplo.com';
+where lower(email) = lower('SEU-EMAIL@exemplo.com')
+on conflict (user_id) do update set papel = 'admin', ativo = true;
 ```
 
-Deve aparecer *1 row inserted*. Agora é só entrar no app com esse e-mail e senha.
+Deve aparecer *1 row affected*. Se aparecer **0**, o login não existe **neste** projeto: confira se o usuário foi criado no mesmo projeto do app.
+
+Para conferir:
+
+```sql
+select u.email, m.papel, m.ativo
+from auth.users u
+left join public.grf_membros m on m.user_id = u.id
+where lower(u.email) = lower('SEU-EMAIL@exemplo.com');
+``` Agora é só entrar no app com esse e-mail e senha.
 
 ## 4. Chaves do app
 

@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createContext, createElement, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, createElement, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { AppError, type Api } from "./api";
 import { api as impl } from "./api-impl";
-import type { AuthUser, Membro } from "./types";
+import { type Classificacao, valorPadrao } from "./classificacao";
+import type { AuthUser, Membro, ValorDe } from "./types";
 
 /** Produção usa o Supabase; o build de preview usa dados em memória (ver vite.config.ts) */
 export const api: Api = impl;
@@ -59,6 +60,9 @@ export const useSession = () => useContext(SessionCtx);
 
 /* ---------------- Consultas ---------------- */
 export const qk = {
+  valores: ["valores"] as const,
+  valoresEvento: (id: string) => ["valores-evento", id] as const,
+  historico: (id?: string) => ["historico-valores", id ?? "padrao"] as const,
   eventos: ["eventos"] as const,
   evento: (id: string) => ["evento", id] as const,
   efetivo: (id: string) => ["efetivo", id] as const,
@@ -71,6 +75,27 @@ export const useEvento = (id: string) => useQuery({ queryKey: qk.evento(id), que
 export const useEfetivo = (id: string) => useQuery({ queryKey: qk.efetivo(id), queryFn: () => api.efetivo.list(id) });
 export const usePessoas = () => useQuery({ queryKey: qk.pessoas, queryFn: api.pessoas.list });
 export const useMembros = () => useQuery({ queryKey: qk.membros, queryFn: api.membros.list });
+export const useValores = () => useQuery({ queryKey: qk.valores, queryFn: api.valores.list });
+export const useValoresEvento = (id: string) => useQuery({ queryKey: qk.valoresEvento(id), queryFn: () => api.valores.doEvento(id) });
+export const useHistoricoValores = (id?: string) => useQuery({ queryKey: qk.historico(id), queryFn: () => api.valores.historico(id) });
+
+/**
+ * Valor de cada classificação: valor do evento (se houver) → tabela padrão.
+ * Sem eventoId, só a tabela padrão. Antes de carregar, usa os valores iniciais.
+ */
+export function useValorDe(eventoId?: string): ValorDe {
+  const { data: padrao } = useValores();
+  const { data: doEvento } = useQuery({
+    queryKey: qk.valoresEvento(eventoId ?? "-"),
+    queryFn: () => (eventoId ? api.valores.doEvento(eventoId) : Promise.resolve([])),
+    enabled: !!eventoId,
+  });
+  return useMemo(() => {
+    const p = new Map((padrao ?? []).map((v) => [v.classificacao, v.valor]));
+    const e = new Map((doEvento ?? []).map((v) => [v.classificacao, v.valor]));
+    return (c: Classificacao) => e.get(c) ?? (p.has(c) ? p.get(c)! : valorPadrao(c));
+  }, [padrao, doEvento]);
+}
 
 /** Mutação com tratamento de erro padrão e invalidação das chaves informadas */
 export function useAction<TArgs, TResult = unknown>(

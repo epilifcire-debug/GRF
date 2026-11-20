@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { type Classificacao, valorPadrao } from "@/lib/classificacao";
 import { pixKeyNorm } from "@/lib/csv";
 import { detectPixType, formatPix, PIX_LABEL } from "@/lib/pix";
-import type { Pessoa, PessoaInput } from "@/lib/types";
+import type { Pessoa, PessoaInput, ValorDe } from "@/lib/types";
 import { parseMoney } from "@/lib/utils";
 import { ClassificationSelect } from "./ClassificationSelect";
 import { Button } from "./ui/button";
@@ -20,15 +20,18 @@ interface Props {
   submitLabel?: string;
   onSubmit: (data: PessoaInput & { valor: number }) => Promise<unknown>;
   ignorarId?: string;
+  /** valores vigentes (evento → padrão) */
+  valorDe?: ValorDe;
 }
 
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 
-export function PessoaForm({ existentes = [], inicial, comValor, submitLabel = "Cadastrar", onSubmit, ignorarId }: Props) {
+export function PessoaForm({ existentes = [], inicial, comValor, submitLabel = "Cadastrar", onSubmit, ignorarId, valorDe }: Props) {
+  const vDe = valorDe ?? valorPadrao;
   const [nome, setNome] = useState(inicial?.nome ?? "");
   const [pix, setPix] = useState(inicial?.pix_chave ?? "");
   const [classificacao, setClassificacao] = useState<Classificacao>(inicial?.classificacao ?? "apoio");
-  const [valor, setValor] = useState(String(valorPadrao(inicial?.classificacao ?? "apoio") ?? ""));
+  const [valor, setValor] = useState(String(vDe(inicial?.classificacao ?? "apoio") ?? ""));
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [sending, setSending] = useState(false);
 
@@ -49,7 +52,7 @@ export function PessoaForm({ existentes = [], inicial, comValor, submitLabel = "
 
   const changeClass = (c: Classificacao) => {
     setClassificacao(c);
-    const v = valorPadrao(c);
+    const v = vDe(c);
     setValor(v != null ? String(v) : "");
   };
 
@@ -111,7 +114,7 @@ export function PessoaForm({ existentes = [], inicial, comValor, submitLabel = "
       <div className={comValor ? "grid gap-4 sm:grid-cols-2" : "grid gap-4"}>
         <div className="grid gap-2">
           <Label htmlFor="pf-class">{comValor ? "Classificação" : "Classificação padrão"}</Label>
-          <ClassificationSelect id="pf-class" value={classificacao} onChange={changeClass} />
+          <ClassificationSelect id="pf-class" value={classificacao} onChange={changeClass} valorDe={valorDe} />
         </div>
         {comValor && (
           <div className="grid gap-2">

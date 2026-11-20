@@ -13,6 +13,12 @@ Sistema de controle de efetivo da **GRF Segurança Patrimonial Privada Ltda**: e
   - edição na própria linha da classificação e do valor do dia;
   - importação e exportação de CSV.
 - **Relatório**: modelo GRF com cabeçalho do evento, caixas GE/VG/AP, coluna de assinatura, totais, linhas em branco opcionais e impressão limpa em A4.
+- **Valores**:
+  - tabela padrão por classificação, com reajustes feitos pelo admin;
+  - em cada evento, uma aba **Valores** para usar valores próprios, com a opção de aplicar o novo valor a quem já está escalado;
+  - histórico de quem mudou, quando e de quanto para quanto.
+
+  Reajustes não alteram eventos já lançados.
 - **Pessoas**: cadastro único com nome, chave PIX (detecta CPF, telefone, e-mail ou chave aleatória) e classificação padrão. Não aceita a mesma chave PIX duas vezes.
 - **Usuários** (só admin): criar conta (o usuário é sugerido a partir do nome), trocar usuário, definir senha, trocar perfil (Equipe/Administrador) e desativar.
 - **PWA**: instalável no celular e no computador, com aviso de nova versão.

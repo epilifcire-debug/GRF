@@ -8,9 +8,12 @@ import type {
   EventoResumo,
   ImportacaoResultado,
   LinhaImportada,
+  HistoricoValor,
   Membro,
   Pessoa,
   PessoaInput,
+  ValorEvento,
+  ValorPadrao,
 } from "./types";
 
 /** Contrato da camada de dados. Implementado pelo Supabase (produção) e em memória (preview). */
@@ -44,6 +47,20 @@ export interface Api {
     update(id: string, patch: { classificacao?: Classificacao; valor?: number }): Promise<void>;
     remove(id: string): Promise<void>;
     copiarDe(origemId: string, destinoId: string): Promise<number>;
+  };
+  valores: {
+    /** tabela padrão */
+    list(): Promise<ValorPadrao[]>;
+    /** só admin; null = sem valor padrão (valor livre) */
+    update(c: Classificacao, valor: number | null): Promise<void>;
+    /** valores específicos de um evento */
+    doEvento(eventoId: string): Promise<ValorEvento[]>;
+    /** null remove o valor do evento (volta a usar o padrão) */
+    definirNoEvento(eventoId: string, c: Classificacao, valor: number | null): Promise<void>;
+    /** atualiza o valor de quem já está escalado no evento com essa classificação; devolve quantos mudaram */
+    aplicarNoEfetivo(eventoId: string, c: Classificacao, valor: number): Promise<number>;
+    /** eventoId: undefined = tabela padrão; string = só daquele evento */
+    historico(eventoId?: string): Promise<HistoricoValor[]>;
   };
   membros: {
     list(): Promise<Membro[]>;

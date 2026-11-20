@@ -9,9 +9,16 @@
 alter table public.grf_membros add column if not exists login text;
 
 -- Preenche quem já existe com a parte antes do @ do e-mail
+-- (remove caracteres inválidos; se ficar curto, completa com parte do id)
 update public.grf_membros
-set login = left(regexp_replace(lower(split_part(email, '@', 1)), '[^a-z0-9._-]', '', 'g'), 30)
-where login is null;
+set login = left(
+  case when length(base) >= 3 then base else base || substr(replace(user_id::text, '-', ''), 1, 6) end, 30)
+from (
+  select user_id as uid,
+         regexp_replace(regexp_replace(lower(split_part(coalesce(email, ''), '@', 1)), '[^a-z0-9._-]', '', 'g'), '^[^a-z0-9]+', '') as base
+  from public.grf_membros
+) b
+where b.uid = grf_membros.user_id and grf_membros.login is null;
 
 alter table public.grf_membros
   alter column login set not null,

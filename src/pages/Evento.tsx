@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CalendarDays, Download, FileDown, FileText, Pencil, Plus, Save, Search, Trash2, Upload, UserPlus, Users, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, CircleDollarSign, Download, FileDown, FileText, Pencil, Plus, Save, Search, Trash2, Upload, UserPlus, Users, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -16,19 +16,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageLoading, Spinner } from "@/components/ui/spinner";
 import { importarParaEvento } from "@/lib/api";
-import { CLASS_MAP, CLASSIFICACOES, type Classificacao, valorPadrao } from "@/lib/classificacao";
+import { CLASS_MAP, CLASSIFICACOES, type Classificacao } from "@/lib/classificacao";
 import { CSV_TEMPLATE, downloadText, efetivoToCSV, parseCSV } from "@/lib/csv";
-import { api, qk, toastErr, useEfetivo, useEvento, usePessoas } from "@/lib/data";
+import { api, qk, toastErr, useEfetivo, useEvento, usePessoas, useValorDe } from "@/lib/data";
 import type { EfetivoItem, EventoInput, Pessoa } from "@/lib/types";
 import { brl, cn, formatDateBR, parseMoney } from "@/lib/utils";
 import { RelatorioEvento } from "./RelatorioEvento";
+import { ValoresEvento } from "./ValoresEvento";
 
 type Filtro = Classificacao | "todos";
 
 export default function Evento() {
   const { id = "" } = useParams();
   const [params, setParams] = useSearchParams();
-  const aba = params.get("aba") === "relatorio" ? "relatorio" : "efetivo";
+  const abaParam = params.get("aba");
+  const aba = abaParam === "relatorio" || abaParam === "valores" ? abaParam : "efetivo";
   const { data: evento, isLoading } = useEvento(id);
   const { data: itens = [], isLoading: loadingEf } = useEfetivo(id);
   const [editar, setEditar] = useState(false);
@@ -121,6 +123,7 @@ export default function Evento() {
       <div className="no-print mb-6 inline-flex rounded-lg border bg-card p-1 shadow-sm">
         {[
           { id: "efetivo", label: "Efetivo", icon: Users },
+          { id: "valores", label: "Valores", icon: CircleDollarSign },
           { id: "relatorio", label: "Relatório", icon: FileText },
         ].map((t) => (
           <button
@@ -138,6 +141,8 @@ export default function Evento() {
 
       {aba === "efetivo" ? (
         <Efetivo eventoId={id} eventoNome={evento.nome} itens={itens} refresh={refresh} />
+      ) : aba === "valores" ? (
+        <ValoresEvento eventoId={id} itens={itens} refresh={refresh} />
       ) : (
         <RelatorioEvento evento={evento} itens={itens} onEditar={() => setEditar(true)} />
       )}
@@ -165,6 +170,7 @@ export default function Evento() {
 
 function Efetivo({ eventoId, eventoNome, itens, refresh }: { eventoId: string; eventoNome: string; itens: EfetivoItem[]; refresh: () => void }) {
   const { data: pessoas = [] } = usePessoas();
+  const valorDe = useValorDe(eventoId);
   const qc = useQueryClient();
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const [busca, setBusca] = useState("");
@@ -199,7 +205,7 @@ function Efetivo({ eventoId, eventoNome, itens, refresh }: { eventoId: string; e
 
   /* ---- ações ---- */
   const adicionar = async (p: Pessoa, valor?: number) => {
-    const v = valor ?? valorPadrao(p.classificacao);
+    const v = valor ?? valorDe(p.classificacao);
     if (v == null) {
       setEspecial(p);
       return;
@@ -255,7 +261,7 @@ function Efetivo({ eventoId, eventoNome, itens, refresh }: { eventoId: string; e
   };
 
   const importar = async (file: File) => {
-    const { rows, errors } = parseCSV(await file.text());
+    const { rows, errors } = parseCSV(await file.text(), valorDe);
     if (!rows.length) {
       toast.error(errors[0] ?? "Nenhuma linha válida no arquivo.");
       return;
@@ -282,7 +288,7 @@ function Efetivo({ eventoId, eventoNome, itens, refresh }: { eventoId: string; e
     setDraft({ classificacao: s.classificacao, valor: String(s.valor).replace(".", ",") });
   };
   const changeDraftClass = (c: Classificacao) =>
-    setDraft((d) => d && { classificacao: c, valor: valorPadrao(c) != null ? String(valorPadrao(c)) : d.valor });
+    setDraft((d) => d && { classificacao: c, valor: valorDe(c) != null ? String(valorDe(c)) : d.valor });
   const keys = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") salvarEdicao();
     if (e.key === "Escape") setEditId(null);
@@ -406,7 +412,7 @@ function Efetivo({ eventoId, eventoNome, itens, refresh }: { eventoId: string; e
                         {editing ? (
                           <>
                             <td className="px-2 py-1.5">
-                              <ClassificationSelect compact value={draft.classificacao} onChange={changeDraftClass} />
+                              <ClassificationSelect compact value={draft.classificacao} onChange={changeDraftClass} valorDe={valorDe} />
                             </td>
                             <td className="px-2 py-1.5">
                               <Input autoFocus className="h-9 text-right" inputMode="decimal" value={draft.valor} onKeyDown={keys} onChange={(e) => setDraft({ ...draft, valor: e.target.value })} />
@@ -473,7 +479,7 @@ function Efetivo({ eventoId, eventoNome, itens, refresh }: { eventoId: string; e
                   {editing && (
                     <div className="mt-3 grid gap-2">
                       <div className="grid grid-cols-2 gap-2">
-                        <ClassificationSelect compact value={draft.classificacao} onChange={changeDraftClass} />
+                        <ClassificationSelect compact value={draft.classificacao} onChange={changeDraftClass} valorDe={valorDe} />
                         <Input inputMode="decimal" value={draft.valor} onChange={(e) => setDraft({ ...draft, valor: e.target.value })} />
                       </div>
                       <div className="flex gap-2">
@@ -495,7 +501,7 @@ function Efetivo({ eventoId, eventoNome, itens, refresh }: { eventoId: string; e
 
       <Dialog open={novaPessoa} onOpenChange={setNovaPessoa}>
         <DialogContent title="Nova pessoa" description="Entra no cadastro geral e já é adicionada a este evento.">
-          <PessoaForm existentes={pessoas} comValor submitLabel="Cadastrar e adicionar" onSubmit={criarEAdicionar} />
+          <PessoaForm existentes={pessoas} comValor valorDe={valorDe} submitLabel="Cadastrar e adicionar" onSubmit={criarEAdicionar} />
         </DialogContent>
       </Dialog>
 

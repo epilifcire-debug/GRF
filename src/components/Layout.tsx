@@ -1,5 +1,5 @@
 import logo from "@/assets/logo-grf.png";
-import { CalendarDays, Download, KeyRound, LogOut, Menu, ShieldCheck, Users, X } from "lucide-react";
+import { CalendarDays, CircleDollarSign, Download, KeyRound, LogOut, Menu, ShieldCheck, Users, X } from "lucide-react";
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { toast } from "sonner";
@@ -17,6 +17,7 @@ function useNav() {
   return [
     { to: "/", label: "Eventos", icon: CalendarDays, end: true },
     { to: "/pessoas", label: "Pessoas", icon: Users },
+    { to: "/valores", label: "Valores", icon: CircleDollarSign },
     ...(isAdmin ? [{ to: "/usuarios", label: "Usuários", icon: ShieldCheck }] : []),
   ];
 }

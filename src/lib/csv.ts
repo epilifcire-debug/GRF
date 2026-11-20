@@ -1,6 +1,6 @@
 import { CLASS_MAP, parseClassificacao } from "./classificacao";
 import { detectPixType, formatPix } from "./pix";
-import type { EfetivoItem, LinhaImportada } from "./types";
+import type { EfetivoItem, LinhaImportada, ValorDe } from "./types";
 import { parseMoney } from "./utils";
 
 /** Detecta ; , ou TAB (Excel em pt-BR exporta com ;) */
@@ -47,7 +47,7 @@ export interface ParseResult {
  * Colunas aceitas (cabeçalho opcional, ordem livre quando há cabeçalho):
  * Nome ; Chave PIX ; Classificação ; Valor
  */
-export function parseCSV(text: string): ParseResult {
+export function parseCSV(text: string, valorDe?: ValorDe): ParseResult {
   const lines = text.replace(/^﻿/, "").split(/\r?\n/).filter((l) => l.trim());
   const errors: string[] = [];
   if (!lines.length) return { rows: [], errors: ["Arquivo vazio."] };
@@ -86,7 +86,7 @@ export function parseCSV(text: string): ParseResult {
     const classificacao = parseClassificacao(clsRaw) ?? "apoio";
     if (clsRaw && !parseClassificacao(clsRaw)) errors.push(`Linha ${lineNo}: classificação "${clsRaw}" não reconhecida — usei Apoio.`);
     const rawValue = idx.value >= 0 ? cols[idx.value] ?? "" : "";
-    const valor = rawValue ? parseMoney(rawValue) : CLASS_MAP[classificacao].valorPadrao ?? 0;
+    const valor = rawValue ? parseMoney(rawValue) : (valorDe ? valorDe(classificacao) : CLASS_MAP[classificacao].valorPadrao) ?? 0;
     if (valor <= 0) {
       errors.push(`Linha ${lineNo} (${nome}): sem valor, ignorada.`);
       return;

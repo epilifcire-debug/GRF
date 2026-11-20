@@ -1,7 +1,7 @@
 import { createClient, type PostgrestError } from "@supabase/supabase-js";
 import { AppError, type Api } from "./api";
 import { emailDeLogin } from "./login";
-import type { EfetivoItem, EventoResumo, Membro } from "./types";
+import type { EfetivoItem, EventoResumo, HistoricoValor, Membro, ValorEvento, ValorPadrao } from "./types";
 
 /** Chaves públicas: primeiro as do servidor (/config.js), depois as do build (.env) */
 const runtime = (window as { __GRF_CONFIG__?: { supabaseUrl?: string; supabaseKey?: string } }).__GRF_CONFIG__;
@@ -174,6 +174,64 @@ export const supabaseApi: Api = {
         .map((o) => ({ pessoa_id: o.pessoa_id, classificacao: o.classificacao, valor: o.valor }));
       if (novos.length) await this.addMany(destinoId, novos);
       return novos.length;
+    },
+  },
+
+  valores: {
+    async list() {
+      const { data, error } = await supabase.from("grf_valores").select("classificacao, valor, updated_at");
+      fail(error);
+      return (data ?? []).map((v) => ({ ...v, valor: v.valor == null ? null : num(v.valor) })) as ValorPadrao[];
+    },
+    async update(c, valor) {
+      const { error } = await supabase.from("grf_valores").update({ valor }).eq("classificacao", c);
+      fail(error);
+    },
+    async doEvento(eventoId) {
+      const { data, error } = await supabase.from("grf_evento_valores").select("evento_id, classificacao, valor").eq("evento_id", eventoId);
+      fail(error);
+      return (data ?? []).map((v) => ({ ...v, valor: num(v.valor) })) as ValorEvento[];
+    },
+    async definirNoEvento(eventoId, c, valor) {
+      const { error } =
+        valor == null
+          ? await supabase.from("grf_evento_valores").delete().eq("evento_id", eventoId).eq("classificacao", c)
+          : await supabase.from("grf_evento_valores").upsert({ evento_id: eventoId, classificacao: c, valor }, { onConflict: "evento_id,classificacao" });
+      fail(error);
+    },
+    async aplicarNoEfetivo(eventoId, c, valor) {
+      const { data, error } = await supabase
+        .from("grf_efetivo")
+        .update({ valor })
+        .eq("evento_id", eventoId)
+        .eq("classificacao", c)
+        .neq("valor", valor)
+        .select("id");
+      fail(error);
+      return data?.length ?? 0;
+    },
+    async historico(eventoId) {
+      let q = supabase
+        .from("grf_valores_historico")
+        .select("id, evento_id, classificacao, valor_anterior, valor_novo, alterado_em, membro:grf_membros(nome)")
+        .order("alterado_em", { ascending: false })
+        .limit(100);
+      q = eventoId ? q.eq("evento_id", eventoId) : q.is("evento_id", null);
+      const { data, error } = await q;
+      fail(error);
+      return (data ?? []).map((h) => {
+        const membro = h.membro as unknown as { nome: string } | { nome: string }[] | null;
+        const nome = Array.isArray(membro) ? membro[0]?.nome : membro?.nome;
+        return {
+          id: h.id,
+          evento_id: h.evento_id,
+          classificacao: h.classificacao,
+          valor_anterior: h.valor_anterior == null ? null : num(h.valor_anterior),
+          valor_novo: h.valor_novo == null ? null : num(h.valor_novo),
+          alterado_em: h.alterado_em,
+          alterado_por_nome: nome ?? null,
+        };
+      }) as HistoricoValor[];
     },
   },
 

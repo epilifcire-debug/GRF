@@ -64,3 +64,30 @@ export interface ImportacaoResultado {
   adicionados: number;
   jaNoEvento: number;
 }
+
+/** Valor padrão de uma classificação (tabela de valores) */
+export interface ValorPadrao {
+  classificacao: Classificacao;
+  valor: number | null;
+  updated_at: string;
+}
+
+/** Valor diferente só para um evento */
+export interface ValorEvento {
+  evento_id: string;
+  classificacao: Classificacao;
+  valor: number;
+}
+
+export interface HistoricoValor {
+  id: number;
+  evento_id: string | null;
+  classificacao: Classificacao;
+  valor_anterior: number | null;
+  valor_novo: number | null;
+  alterado_em: string;
+  alterado_por_nome: string | null;
+}
+
+/** Resolve o valor de uma classificação (evento → padrão) */
+export type ValorDe = (c: Classificacao) => number | null;

@@ -8,6 +8,7 @@ No **SQL Editor** do projeto, rode **na ordem** (cada arquivo inteiro → **Run*
 
 1. `supabase/migrations/20261120000000_grf_schema.sql`: tabelas, view e RLS.
 2. `supabase/migrations/20261120210000_grf_login_usuario.sql`: login por **usuário ou e-mail**. Rode este **depois** de criar o primeiro admin (passo 3), ou rode de novo o comando de admin depois dele; o arquivo já preenche o usuário de quem existir.
+3. `supabase/migrations/20261120220000_grf_valores.sql`: **tabela de valores** (padrão por classificação, valores próprios por evento e histórico de alterações). Só o admin altera a tabela padrão; qualquer membro altera os valores de um evento.
 
 Isso cria:
 

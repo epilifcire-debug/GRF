@@ -3,9 +3,9 @@
  * (npm run build:preview). Dados fictícios, nada é salvo.
  */
 import { AppError, type Api } from "./api";
-import { type Classificacao, valorPadrao } from "./classificacao";
+import { CLASSIFICACOES, type Classificacao, valorPadrao } from "./classificacao";
 import { pixKeyNorm } from "./csv";
-import type { AuthUser, EfetivoItem, Evento, Membro, Pessoa } from "./types";
+import type { AuthUser, EfetivoItem, Evento, HistoricoValor, Membro, Pessoa, ValorEvento, ValorPadrao } from "./types";
 import { uid } from "./utils";
 
 const now = () => new Date().toISOString();
@@ -47,7 +47,7 @@ const eventos: Evento[] = [
 
 type Row = Omit<EfetivoItem, "pessoa">;
 let efetivo: Row[] = [
-  ...pessoas.map((p) => ({ id: uid(), evento_id: "e1", pessoa_id: p.id, classificacao: p.classificacao, valor: valorPadrao(p.classificacao) ?? 180, created_at: now() })),
+  ...pessoas.map((p) => ({ id: uid(), evento_id: "e1", pessoa_id: p.id, classificacao: p.classificacao, valor: p.classificacao === "lider" ? 160 : valorPadrao(p.classificacao) ?? 180, created_at: now() })),
   ...pessoas.slice(0, 14).map((p) => ({ id: uid(), evento_id: "e2", pessoa_id: p.id, classificacao: p.classificacao, valor: valorPadrao(p.classificacao) ?? 180, created_at: now() })),
   ...pessoas.slice(6, 18).map((p) => ({ id: uid(), evento_id: "e3", pessoa_id: p.id, classificacao: p.classificacao, valor: valorPadrao(p.classificacao) ?? 180, created_at: now() })),
 ];
@@ -56,6 +56,18 @@ const membros: Membro[] = [
   { user_id: "u1", nome: "Administrador (demo)", login: "admin", email: null, papel: "admin", ativo: true, created_at: now() },
   { user_id: "u2", nome: "Coordenador de Equipe", login: "coordenador", email: "coordenador@email.com", papel: "equipe", ativo: true, created_at: now() },
 ];
+
+const valores: ValorPadrao[] = CLASSIFICACOES.map((c) => ({ classificacao: c.id, valor: c.valorPadrao, updated_at: now() }));
+let valoresEvento: ValorEvento[] = [{ evento_id: "e1", classificacao: "lider", valor: 160 }];
+const historico: HistoricoValor[] = [
+  { id: 2, evento_id: "e1", classificacao: "lider", valor_anterior: null, valor_novo: 160, alterado_em: "2026-11-18T14:20:00Z", alterado_por_nome: "Administrador (demo)" },
+  { id: 1, evento_id: null, classificacao: "apoio", valor_anterior: 100, valor_novo: 110, alterado_em: "2026-10-01T12:00:00Z", alterado_por_nome: "Administrador (demo)" },
+];
+let histSeq = 3;
+const logHist = (evento_id: string | null, c: Classificacao, antes: number | null, depois: number | null) => {
+  if (antes === depois) return;
+  historico.unshift({ id: histSeq++, evento_id, classificacao: c, valor_anterior: antes, valor_novo: depois, alterado_em: now(), alterado_por_nome: "Administrador (demo)" });
+};
 
 let user: AuthUser | null = { id: "u1", email: "admin" };
 const authSubs = new Set<(u: AuthUser | null) => void>();
@@ -169,6 +181,40 @@ export const demoApi: Api = {
       const novos = efetivo.filter((r) => r.evento_id === origemId && !ja.has(r.pessoa_id));
       novos.forEach((r) => efetivo.push({ ...r, id: uid(), evento_id: destinoId, created_at: now() }));
       return novos.length;
+    },
+  },
+  valores: {
+    async list() {
+      await wait();
+      return valores.map((v) => ({ ...v }));
+    },
+    async update(c, valor) {
+      await wait();
+      const v = valores.find((x) => x.classificacao === c)!;
+      logHist(null, c, v.valor, valor);
+      v.valor = valor;
+      v.updated_at = now();
+    },
+    async doEvento(eventoId) {
+      await wait();
+      return valoresEvento.filter((v) => v.evento_id === eventoId).map((v) => ({ ...v }));
+    },
+    async definirNoEvento(eventoId, c, valor) {
+      await wait();
+      const atual = valoresEvento.find((v) => v.evento_id === eventoId && v.classificacao === c);
+      logHist(eventoId, c, atual?.valor ?? null, valor);
+      valoresEvento = valoresEvento.filter((v) => !(v.evento_id === eventoId && v.classificacao === c));
+      if (valor != null) valoresEvento.push({ evento_id: eventoId, classificacao: c, valor });
+    },
+    async aplicarNoEfetivo(eventoId, c, valor) {
+      await wait();
+      const alvo = efetivo.filter((r) => r.evento_id === eventoId && r.classificacao === c && r.valor !== valor);
+      alvo.forEach((r) => (r.valor = valor));
+      return alvo.length;
+    },
+    async historico(eventoId) {
+      await wait();
+      return historico.filter((h) => (eventoId ? h.evento_id === eventoId : h.evento_id === null));
     },
   },
   membros: {

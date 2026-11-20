@@ -10,6 +10,7 @@ import Eventos from "./pages/Eventos";
 import Login, { SemAcesso } from "./pages/Login";
 import Pessoas from "./pages/Pessoas";
 import Usuarios from "./pages/Usuarios";
+import Valores from "./pages/Valores";
 
 /** Build de preview (npm run build:preview) roda dentro de um frame: usa rotas em memória */
 const Router = IS_PREVIEW ? MemoryRouter : BrowserRouter;
@@ -43,6 +44,7 @@ export default function App() {
                 <Route index element={<Eventos />} />
                 <Route path="eventos/:id" element={<Evento />} />
                 <Route path="pessoas" element={<Pessoas />} />
+                <Route path="valores" element={<Valores />} />
                 <Route path="usuarios" element={<Usuarios />} />
               </Route>
             </Route>

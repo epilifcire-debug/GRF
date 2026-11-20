@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 20% 97%;
+    --foreground: 222 20% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 20% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 20% 12%;
+    --primary: 39 79% 60%;
+    --primary-foreground: 222 25% 8%;
+    --secondary: 220 14% 95%;
+    --secondary-foreground: 222 20% 16%;
+    --muted: 220 14% 95%;
+    --muted-foreground: 220 9% 44%;
+    --accent: 40 70% 94%;
+    --accent-foreground: 30 60% 25%;
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 89%;
+    --input: 220 13% 86%;
+    --ring: 39 79% 55%;
+    --radius: 0.75rem;
+    --sidebar: 222 18% 7%;
+    --sidebar-foreground: 40 20% 92%;
+    --sidebar-muted: 222 12% 14%;
+  }
+
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+  }
+}
+
+@layer components {
+  .zebra > tr:nth-child(even) {
+    @apply bg-muted/50;
+  }
+}
+
+/* ---------- Impressão ---------- */
+.print-only {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .print-area {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+  }
+  .print-shell {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .report-table thead {
+    display: table-header-group;
+  }
+  .report-table tr {
+    break-inside: avoid;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

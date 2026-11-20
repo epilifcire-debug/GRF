@@ -1,47 +1,63 @@
 # GRF Controle Pessoal
 
-Sistema de controle de efetivo da **GRF Segurança Patrimonial Privada Ltda**: cadastro do pessoal por evento, totais por classificação e relatório "Controle Pessoal" pronto para impressão.
+Sistema de controle de efetivo da **GRF Segurança Patrimonial Privada Ltda**: eventos, cadastro único do pessoal, efetivo por evento e relatório "Controle Pessoal" pronto para impressão. Os dados ficam no **Supabase**, com login.
 
 ## Funcionalidades
 
-- **Cadastro**: nome, chave PIX (detecta CPF, telefone ou e-mail e aplica a máscara), classificação e valor (preenchido pela classificação, mas editável). Avisa quando o nome ou a chave PIX já foram cadastrados.
-- **Equipe**: cards de resumo por tipo (clique para filtrar), busca, tabela zebrada, edição inline (Enter salva, Esc cancela), exclusão com confirmação.
-- **CSV**: importação (separador `;`, `,` ou TAB, com ou sem cabeçalho), exportação e planilha modelo.
-- **Relatório**: cabeçalho editável (evento, município, data com calendário, organizador, contato, observações), cabeçalho oficial da GRF, tabela Nº | Nome | GE/VG/AP | Chave PIX | Valor | Assinatura, linhas em branco opcionais, filtro por classificação, totais e impressão limpa em A4.
-- **PWA**: dá pra instalar no celular e no computador (botão "Instalar app" no menu quando o navegador permitir). Funciona em tela cheia e abre mesmo sem internet, porque o service worker guarda só os arquivos do app, nunca os dados. Quando sai versão nova, aparece um aviso "Atualizar".
-- **Dados**: ficam salvos no `localStorage` do navegador (não há backend).
+- **Login**: só entra quem o administrador liberou. Cada usuário pode trocar a própria senha.
+- **Eventos**: lista com data, município, número de pessoas e valor. Ao criar um evento, dá pra começar com o efetivo de outro evento.
+- **Efetivo do evento**:
+  - busca rápida pra adicionar pessoas já cadastradas (Enter adiciona);
+  - botão "Nova pessoa", que cadastra e já adiciona ao evento;
+  - cards de total por classificação (clicar filtra a tabela);
+  - edição na própria linha da classificação e do valor do dia;
+  - importação e exportação de CSV.
+- **Relatório**: modelo GRF com cabeçalho do evento, caixas GE/VG/AP, coluna de assinatura, totais, linhas em branco opcionais e impressão limpa em A4.
+- **Pessoas**: cadastro único com nome, chave PIX (detecta CPF, telefone, e-mail ou chave aleatória) e classificação padrão. Não aceita a mesma chave PIX duas vezes.
+- **Usuários** (só admin): criar login, definir senha, trocar perfil (Equipe/Administrador) e desativar.
+- **PWA**: instalável no celular e no computador, com aviso de nova versão.
 
-| Classificação | Código | Valor padrão |
+| Classificação | Código no relatório | Valor padrão |
 |---|---|---|
 | Apoio | AP | R$ 110 |
 | Curso Vigilante | VG | R$ 120 |
 | Curso Grandes Eventos | GE | R$ 130 |
-| Líder | — (aparece "LÍDER") | R$ 150 |
-| Especial | — (aparece "ESP.") | valor livre |
+| Líder | "LÍDER" | R$ 150 |
+| Especial | "ESP." | valor livre |
 
 ## Stack
 
-React 18 + TypeScript + Vite + Tailwind CSS + componentes no padrão shadcn/ui (Radix) + lucide-react + sonner.
+React 18, TypeScript, Vite, Tailwind CSS e componentes shadcn/ui (Radix), com TanStack Query no front. No Supabase: Postgres com RLS, Auth e uma Edge Function.
 
-## Rodar localmente
+## 1. Banco (uma vez)
+
+Siga o passo a passo em [`supabase/SETUP.md`](supabase/SETUP.md): SQL das tabelas, Edge Function `grf-usuarios` e primeiro administrador.
+
+## 2. Rodar localmente
 
 ```bash
+cp .env.example .env      # preencha URL e publishable key do Supabase
 npm install
-npm run dev        # http://localhost:5173
-npm run build      # gera a pasta dist/
-npm run preview    # serve o build em http://localhost:8080
+npm run dev               # http://localhost:5173
 ```
 
-## Deploy (Shard Cloud ou qualquer Docker)
+## 3. Deploy (Shard Cloud ou qualquer Docker)
 
-O `Dockerfile` faz o build e serve com nginx na porta **80**. O `nginx.conf` já trata as rotas da SPA.
+O `Dockerfile` compila o app e serve com nginx na porta **80**. As chaves públicas do Supabase entram no build:
 
 ```bash
-docker build -t grf-controle-pessoal .
+docker build \
+  --build-arg VITE_SUPABASE_URL=https://SEU-PROJETO.supabase.co \
+  --build-arg VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx \
+  -t grf-controle-pessoal .
 docker run -p 8080:80 grf-controle-pessoal
 ```
 
-Como a pasta `dist/` é estática, também roda em GitHub Pages, Vercel ou Netlify. Nesses casos, configure o fallback de rotas para `index.html`.
+Se a plataforma não aceitar *build args*, crie um arquivo `.env.production` com as duas variáveis antes do build. São chaves públicas; a `service_role` nunca entra no app.
+
+## Preview (mockup navegável)
+
+`npm run build:preview` gera `dist-preview/index.html`: um arquivo único com dados **fictícios** em memória, sem Supabase, usado só pra avaliar layout e tipografia. O build normal (`npm run build`) não inclui esses dados.
 
 ## Formato do CSV
 
@@ -51,23 +67,24 @@ Maria da Silva;123.456.789-09;Apoio;110
 João Santos;(79) 99999-0000;VG;120
 ```
 
-A coluna Classificação aceita o nome ou o código (Apoio/AP, Vigilante/VG, Grandes Eventos/GE, Líder, Especial). Se o Valor ficar vazio, entra o valor padrão da classificação.
+Na importação dentro de um evento, quem já está no cadastro (mesma chave PIX) é reaproveitado, os novos são cadastrados, e quem já estava no evento não é duplicado.
 
 ## Estrutura
 
 ```
+supabase/
+  migrations/…_grf_schema.sql   tabelas, view, RLS
+  functions/grf-usuarios/       Edge Function (criar usuário / definir senha)
+  SETUP.md                      passo a passo do banco
 src/
-  lib/staff.ts      classificações, tipos e persistência (localStorage)
-  lib/pix.ts        detecção, validação e máscaras de PIX
-  lib/csv.ts        importação e exportação de CSV
-  pages/Cadastro.tsx
-  pages/Equipe.tsx
-  pages/Relatorio.tsx
-  components/       layout (sidebar escura e nav mobile) e componentes de UI
-public/             logos e ícones da GRF
+  lib/api.ts                    contrato da camada de dados + importação CSV
+  lib/api-supabase.ts           implementação Supabase (produção)
+  lib/api-demo.ts               dados fictícios (só no preview)
+  lib/data.ts                   sessão e hooks (TanStack Query)
+  pages/                        Login, Eventos, Evento (efetivo + relatório), Pessoas, Usuários
+  components/                   layout, formulários e componentes de UI
+public/                         ícones, manifest e service worker
 ```
-
-Para migrar para o Supabase no futuro, basta trocar a persistência em `src/lib/staff.ts`. As telas usam somente os hooks `useStaff` e `useReportHeader`.
 
 ---
 by: efcsys

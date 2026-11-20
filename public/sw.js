@@ -3,7 +3,7 @@
  * - Navegação: network-first, com o index.html em cache como fallback offline
  * Os dados do app ficam no localStorage, nunca no cache do SW.
  */
-const VERSION = "grf-v1";
+const VERSION = "grf-v2";
 const STATIC_CACHE = `${VERSION}-static`;
 const SHELL = ["/", "/index.html", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/logo-grf.png"];
 

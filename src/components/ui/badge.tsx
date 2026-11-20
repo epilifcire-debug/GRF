@@ -1,7 +1,7 @@
-import { CLASS_MAP, type Classification } from "@/lib/staff";
+import { CLASS_MAP, type Classificacao } from "@/lib/classificacao";
 import { cn } from "@/lib/utils";
 
-export function ClassBadge({ value, className }: { value: Classification; className?: string }) {
+export function ClassBadge({ value, className }: { value: Classificacao; className?: string }) {
   const c = CLASS_MAP[value];
   return (
     <span

@@ -1,5 +1,6 @@
-import { detectPixType } from "./pix";
-import { CLASS_MAP, parseClassification, type StaffInput, type StaffMember } from "./staff";
+import { CLASS_MAP, parseClassificacao } from "./classificacao";
+import { detectPixType, formatPix } from "./pix";
+import type { EfetivoItem, LinhaImportada } from "./types";
 import { parseMoney } from "./utils";
 
 /** Detecta ; , ou TAB (Excel em pt-BR exporta com ;) */
@@ -37,8 +38,8 @@ const norm = (s: string) =>
     .toLowerCase()
     .trim();
 
-export interface ImportResult {
-  rows: StaffInput[];
+export interface ParseResult {
+  rows: LinhaImportada[];
   errors: string[];
 }
 
@@ -46,7 +47,7 @@ export interface ImportResult {
  * Colunas aceitas (cabeçalho opcional, ordem livre quando há cabeçalho):
  * Nome ; Chave PIX ; Classificação ; Valor
  */
-export function parseStaffCSV(text: string): ImportResult {
+export function parseCSV(text: string): ParseResult {
   const lines = text.replace(/^﻿/, "").split(/\r?\n/).filter((l) => l.trim());
   const errors: string[] = [];
   if (!lines.length) return { rows: [], errors: ["Arquivo vazio."] };
@@ -67,33 +68,41 @@ export function parseStaffCSV(text: string): ImportResult {
     if (idx.name < 0) return { rows: [], errors: ["Não encontrei a coluna 'Nome' no cabeçalho."] };
   }
 
-  const rows: StaffInput[] = [];
+  const rows: LinhaImportada[] = [];
   lines.slice(hasHeader ? 1 : 0).forEach((line, i) => {
     const cols = parseLine(line, delim);
     const lineNo = i + (hasHeader ? 2 : 1);
-    const name = cols[idx.name] ?? "";
-    if (!name) {
+    const nome = (cols[idx.name] ?? "").replace(/\s+/g, " ").trim();
+    const pixRaw = idx.pix >= 0 ? cols[idx.pix] ?? "" : "";
+    if (nome.length < 3) {
       errors.push(`Linha ${lineNo}: sem nome, ignorada.`);
       return;
     }
-    const pixKey = idx.pix >= 0 ? cols[idx.pix] ?? "" : "";
-    const classification = (idx.cls >= 0 && parseClassification(cols[idx.cls] ?? "")) || "apoio";
-    if (idx.cls >= 0 && cols[idx.cls] && !parseClassification(cols[idx.cls])) {
-      errors.push(`Linha ${lineNo}: classificação "${cols[idx.cls]}" não reconhecida — usei Apoio.`);
+    if (pixRaw.trim().length < 3) {
+      errors.push(`Linha ${lineNo} (${nome}): sem chave PIX, ignorada.`);
+      return;
     }
+    const clsRaw = idx.cls >= 0 ? cols[idx.cls] ?? "" : "";
+    const classificacao = parseClassificacao(clsRaw) ?? "apoio";
+    if (clsRaw && !parseClassificacao(clsRaw)) errors.push(`Linha ${lineNo}: classificação "${clsRaw}" não reconhecida — usei Apoio.`);
     const rawValue = idx.value >= 0 ? cols[idx.value] ?? "" : "";
-    const value = rawValue ? parseMoney(rawValue) : CLASS_MAP[classification].defaultValue ?? 0;
-    rows.push({ name, pixKey, pixType: detectPixType(pixKey), classification, value });
+    const valor = rawValue ? parseMoney(rawValue) : CLASS_MAP[classificacao].valorPadrao ?? 0;
+    if (valor <= 0) {
+      errors.push(`Linha ${lineNo} (${nome}): sem valor, ignorada.`);
+      return;
+    }
+    const pix_tipo = detectPixType(pixRaw);
+    rows.push({ nome, pix_chave: formatPix(pixRaw, pix_tipo), pix_tipo, classificacao, valor });
   });
 
   return { rows, errors };
 }
 
-export function staffToCSV(list: StaffMember[]): string {
+export function efetivoToCSV(list: EfetivoItem[]): string {
   const esc = (s: string) => (/[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
   const header = "Nº;Nome;Chave PIX;Classificação;Valor";
   const body = list.map((s, i) =>
-    [String(i + 1), s.name, s.pixKey, CLASS_MAP[s.classification].label, s.value.toFixed(2).replace(".", ",")]
+    [String(i + 1), s.pessoa.nome, s.pessoa.pix_chave, CLASS_MAP[s.classificacao].label, s.valor.toFixed(2).replace(".", ",")]
       .map(esc)
       .join(";"),
   );
@@ -112,3 +121,6 @@ export function downloadText(filename: string, text: string, mime = "text/csv;ch
 
 export const CSV_TEMPLATE =
   "﻿Nome;Chave PIX;Classificação;Valor\r\nMaria da Silva;123.456.789-09;Apoio;110\r\nJoão Santos;(79) 99999-0000;Vigilante;120\r\nAna Souza;ana@email.com;GE;130\r\n";
+
+/** Chave PIX normalizada (igual ao índice único do banco) */
+export const pixKeyNorm = (s: string) => (/[A-Za-z@]/.test(s) ? s.trim().toLowerCase() : s.replace(/\D/g, ""));
